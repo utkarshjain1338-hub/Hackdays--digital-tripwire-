@@ -6,7 +6,8 @@ from openai import OpenAI
 from google import genai
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from the root directory
+load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
 
 # Configure NVIDIA NIM (Watchdog)
 nvidia_api_key = os.getenv("NVIDIA_API_KEY")
@@ -116,7 +117,7 @@ def analyze_suspicious_query(query):
         Format the response nicely with headings.
         """
         response = gemini_client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.0-flash',
             contents=prompt,
         )
         

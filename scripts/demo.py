@@ -2,7 +2,7 @@
 Digital Tripwire Demo Launcher
 ================================
 Starts all services and simulates an attack in one command.
-Run: python demo.py
+Run: python scripts/demo.py
 """
 import subprocess
 import sys
@@ -11,7 +11,8 @@ import os
 import signal
 import requests
 
-VENV_PYTHON = os.path.join(os.path.dirname(__file__), "venv", "bin", "python")
+# Point to root-level venv
+VENV_PYTHON = os.path.join(os.path.dirname(__file__), "..", "venv", "bin", "python")
 BOLD   = "\033[1m"
 RED    = "\033[91m"
 GREEN  = "\033[92m"
@@ -79,7 +80,7 @@ if __name__ == "__main__":
     section("Step 1: Starting The Store Web Server (Flask)")
     step("Launching Flask on http://127.0.0.1:5000 ...")
     flask_proc = subprocess.Popen(
-        [VENV_PYTHON, "app.py"],
+        [VENV_PYTHON, "run.py"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
     )
@@ -92,10 +93,10 @@ if __name__ == "__main__":
         cleanup()
 
     # ── Step 2: Start OS file monitor ────────────────────────
-    section("Step 2: Activating OS-Level Defense (file_monitor.py)")
+    section("Step 2: Activating OS-Level Defense (src/core/monitor.py)")
     step("Launching Defense-in-Depth monitor for honeypot.db ...")
     monitor_proc = subprocess.Popen(
-        [VENV_PYTHON, "file_monitor.py"],
+        [VENV_PYTHON, "-m", "src.core.monitor"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
     )
@@ -129,17 +130,13 @@ if __name__ == "__main__":
     section("Step 5: Watching The AI Pipeline Fire (Server Logs)")
     print(f"  {DIM}Waiting for Watchdog + Strategist to complete analysis...{RESET}\n")
 
-    # Stream Flask output
-    flask_visible = subprocess.Popen(
-        [VENV_PYTHON, "app.py"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True
-    )
-    processes.append(flask_visible)
+    # We don't restart Flask here, just wait for the output from the first process
+    # Actually, the original script launched app.py again to show output. 
+    # That's a bit messy but let's stick to the logic if possible or improve it.
+    # I'll just wait.
     
     # Give the already-running Flask server 5s to finish AI calls
-    time.sleep(5)
+    time.sleep(8)
 
     # ── Step 6: Verify lockdown ───────────────────────────────
     section("Step 6: Verifying Auto-Lockdown Kill Switch")
@@ -165,7 +162,7 @@ if __name__ == "__main__":
     ▸ SQL Injection on honeypot: SILENTLY CAUGHT  
     ▸ NVIDIA NIM (Watchdog):     Extracted threat JSON
     ▸ ntfy.sh phone alert:       Sent to your mobile device  
-    ▸ Gemini 2.5 Flash:          Generated incident report
+    ▸ Gemini 2.0 Flash:          Generated incident report
     ▸ Auto-Shutdown Kill Switch: Active — System Locked
     ▸ OS File Monitor:           Running in background
   {RESET}

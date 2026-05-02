@@ -1,7 +1,8 @@
 import sqlite3
 import threading
-from ai_alerter import analyze_suspicious_query
-import anomaly_detector
+import os
+from src.core.alerter import analyze_suspicious_query
+import src.core.detector as detector
 
 # Thread-local storage to get the current request IP
 _current_ip = threading.local()
@@ -21,7 +22,7 @@ def trace_callback(query):
     ip = get_request_ip()
 
     # Log ALL queries through the anomaly detector
-    anomaly_detector.log_query(ip, query)
+    detector.log_query(ip, query)
 
     # Check if the honeypot bait table was accessed
     if 'VAULT_SECRETS' in upper_query:
@@ -30,14 +31,15 @@ def trace_callback(query):
         with open('.system_lockdown', 'w') as f:
             f.write('LOCKED')
         # Register honeypot incident in the dashboard
-        anomaly_detector.add_honeypot_incident(ip, query)
+        detector.add_honeypot_incident(ip, query)
         threading.Thread(target=analyze_suspicious_query, args=(query,)).start()
 
 def get_db():
     """
     Get a database connection configured with the trace callback.
     """
-    conn = sqlite3.connect('honeypot.db', check_same_thread=False)
+    db_path = os.path.join(os.path.dirname(__file__), '../../honeypot.db')
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     # Attach the watchdog trigger
     conn.set_trace_callback(trace_callback)
@@ -48,7 +50,8 @@ def init_db():
     Initialize the database with normal tables and the honeypot table.
     We don't attach the trace callback here to avoid triggering it during setup.
     """
-    conn = sqlite3.connect('honeypot.db')
+    db_path = os.path.join(os.path.dirname(__file__), '../../honeypot.db')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
     # Create normal business table
