@@ -364,5 +364,217 @@ explains exactly what happened and what to do next.
        python demo.py
 
 ================================================================================
+  SECTION 7: FUTURE SCOPE
+================================================================================
+
+The current prototype is a powerful proof of concept. The following roadmap
+outlines how this system can be evolved into a production-grade, enterprise-
+ready platform.
+
+
+  7.1 — TRANSITION TO LOCAL AI (Zero API Cost, Full Privacy)
+  ────────────────────────────────────────────────────────────
+  CURRENT STATE:  Cloud APIs (NVIDIA NIM + Gemini) require internet access
+                  and have API cost implications at scale.
+
+  FUTURE STATE:   Replace cloud models with locally-hosted LLMs using Ollama.
+    - Watchdog → Llama 3.1 8B running on-device (zero cloud cost).
+    - Strategist → Llama 3.1 70B or Mistral running on a local GPU server.
+    - BENEFIT: Zero API keys, zero internet dependency, zero per-query cost.
+               Works offline. Ideal for clinics or pharmacies with strict
+               data privacy regulations (HIPAA, GDPR).
+    - REQUIREMENT: A machine with 16+ GB RAM or an NVIDIA GPU.
+
+
+  7.2 — MULTI-DATABASE SUPPORT (Beyond SQLite)
+  ──────────────────────────────────────────────
+  CURRENT STATE:  Only SQLite is supported via set_trace_callback.
+
+  FUTURE STATE:   Build database-agnostic monitoring via a proxy layer.
+    - Deploy a lightweight SQL proxy (like ProxySQL or pgBouncer) that sits
+      between the application and the database (PostgreSQL, MySQL).
+    - The proxy intercepts ALL queries and pipes them to the AI pipeline,
+      regardless of the underlying database engine.
+    - BENEFIT: The system can protect any business's existing database
+               without requiring a migration to SQLite.
+
+
+  7.3 — DASHBOARD & ADMIN PANEL
+  ───────────────────────────────
+  CURRENT STATE:  Alerts are printed to a terminal and sent via ntfy.sh.
+
+  FUTURE STATE:   A real-time web dashboard for the business owner.
+    - Technology: React or Next.js frontend + WebSockets for live updates.
+    - Features:
+        ▸ Live feed of all queries hitting the database (color-coded by risk).
+        ▸ Incident history log with timestamps, threat levels, and AI reports.
+        ▸ One-click "Unlock System" button (replaces manual file deletion).
+        ▸ Behavioral baseline charts (normal vs. anomalous query volumes).
+        ▸ Export incident reports as PDF for insurance or legal claims.
+
+
+  7.4 — BEHAVIORAL ANOMALY DETECTION (Insider Threats)
+  ──────────────────────────────────────────────────────
+  CURRENT STATE:  Binary detection — honeypot touched = breach confirmed.
+
+  FUTURE STATE:   Establish a behavioral baseline for each user account.
+    - Log every user's normal patterns: which tables, what hours, what volume.
+    - Use a lightweight ML model (Isolation Forest or Z-score analysis) to
+      flag statistical anomalies:
+        ▸ Cashier_02 usually queries 20 records/day. Today: 50,000 records.
+        ▸ Admin account logged in at 3 AM from an unknown IP address.
+    - This catches insider threats who never touch the honeypot but exhibit
+      suspicious behavior with legitimate data.
+    - This is the "Insider Threat Detector" concept described at the start
+      of this project.
+
+
+  7.5 — WHATSAPP & SMS REAL ALERTS
+  ──────────────────────────────────
+  CURRENT STATE:  ntfy.sh push notifications (requires app installation).
+
+  FUTURE STATE:   Alerts delivered to channels the owner already uses.
+    - WhatsApp Business API (Meta): Send alerts to the owner's WhatsApp.
+    - Twilio SMS: Fallback SMS for phones without internet.
+    - Email (SendGrid): Detailed HTML incident report emailed automatically.
+    - BENEFIT: Zero app installation required for the business owner. The
+               alert reaches them wherever they are, on any device.
+
+
+  7.6 — CONTAINERIZATION & ONE-CLICK DEPLOYMENT
+  ────────────────────────────────────────────────
+  CURRENT STATE:  Manual setup with venv and pip install.
+
+  FUTURE STATE:   Docker + Docker Compose for instant deployment.
+    - A single "docker compose up" command starts:
+        ▸ The Flask web server.
+        ▸ The OS file monitor.
+        ▸ The local Ollama AI server.
+        ▸ A Redis instance for distributed rate-limiting.
+    - BENEFIT: A business owner (or IT consultant) can deploy the entire
+               system on any Linux machine in under 5 minutes.
+
+
+  7.7 — COMPLIANCE REPORTING (GDPR / HIPAA)
+  ────────────────────────────────────────────
+  FUTURE STATE:   Auto-generate legally compliant breach notification reports.
+    - When a breach is detected, the Strategist AI generates a pre-formatted
+      report compliant with GDPR Article 33 (72-hour breach notification) or
+      HIPAA Breach Notification Rule requirements.
+    - BENEFIT: Saves the business owner potentially thousands of dollars in
+               legal consultation fees when they are required to notify
+               regulators or affected customers.
+
+
+================================================================================
+  SECTION 8: HOW TO EARN — MONETIZATION STRATEGY
+================================================================================
+
+This system can be monetized through multiple channels, from consulting
+services to a fully productized SaaS platform.
+
+
+  8.1 — MODEL 1: B2B SAAS SUBSCRIPTION (Highest Potential)
+  ──────────────────────────────────────────────────────────
+  WHAT:   Package the system as a hosted service, "Digital Tripwire Pro."
+          Business owners pay a monthly subscription and get the protection
+          without managing any servers themselves.
+
+  TARGET: Local pharmacies, clinics, retail chains, accountancy firms —
+          any small business that handles sensitive customer data.
+
+  PRICING TIERS:
+    ▸ Starter  — ₹999/month   ($12)   — 1 database, ntfy alerts, 30-day logs
+    ▸ Business — ₹3,499/month ($42)   — 3 databases, WhatsApp alerts, dashboard
+    ▸ Pro      — ₹9,999/month ($120)  — Unlimited DBs, SMS, GDPR reports, SLA
+
+  WHY IT WORKS: The average cost of a data breach for a small business is
+  $120,000–$200,000 (IBM report). A ₹9,999/month subscription that prevents
+  even one breach pays for itself 100x over.
+
+
+  8.2 — MODEL 2: FREELANCE / CONSULTING INSTALLATION
+  ─────────────────────────────────────────────────────
+  WHAT:   Offer a one-time "security installation" service. Visit a local
+          business, install and configure the Digital Tripwire on their server,
+          train the owner on the dashboard, and charge a setup fee.
+
+  PRICING:
+    ▸ Setup fee:         ₹15,000 – ₹30,000 ($180–$360) per business
+    ▸ Annual maintenance:₹5,000  – ₹10,000 ($60–$120) per year
+
+  PIPELINE: Target local businesses through LinkedIn, cold emailing, or
+  partnering with a local IT support shop that already has a client base.
+  This is the fastest path to first revenue — no product infrastructure needed.
+
+
+  8.3 — MODEL 3: INCIDENT RESPONSE RETAINER
+  ───────────────────────────────────────────
+  WHAT:   After installing the system, offer a retainer service. If the
+          honeypot fires, the business pays you to be their "on-call"
+          incident responder. You investigate, remediate, and handle the
+          regulatory paperwork.
+
+  PRICING:
+    ▸ Retainer: ₹5,000–₹8,000/month ($60–$100)
+    ▸ Per-incident response: ₹20,000–₹50,000 ($240–$600)
+
+  VALUE PROP: The Gemini Strategist already generates 90% of the incident
+  report. You are being paid to read the AI output, verify it, and communicate
+  with the owner. High value, low actual time investment.
+
+
+  8.4 — MODEL 4: OPEN-SOURCE CORE + PAID FEATURES (Open Core)
+  ──────────────────────────────────────────────────────────────
+  WHAT:   Keep the core honeypot engine open-source on GitHub (community
+          trust + marketing). Charge for premium features.
+
+  FREE (Open Source):
+    ▸ SQLite honeypot engine
+    ▸ Terminal alerts
+    ▸ ntfy.sh push notifications
+
+  PAID (Pro License / SaaS):
+    ▸ Web dashboard with real-time query feed
+    ▸ WhatsApp / SMS alerts
+    ▸ Behavioral anomaly detection
+    ▸ GDPR / HIPAA auto-reports
+    ▸ Multi-database support (PostgreSQL, MySQL)
+    ▸ Local AI mode (no API keys, full privacy)
+
+  WHY IT WORKS: This is the exact model used by companies like GitLab,
+  Metabase, and Grafana. The open-source version builds community trust and
+  gets you inbound leads. The paid features convert those leads to revenue.
+
+
+  8.5 — MODEL 5: HACKATHON → GRANT → STARTUP
+  ────────────────────────────────────────────
+  WHAT:   Use this project as a portfolio piece to:
+    a) WIN hackathons: Enter Hackdays, HackIndia, Smart India Hackathon.
+       Cybersecurity + AI + SMB focus is a winning combination.
+    b) APPLY FOR GRANTS: Apply to NASSCOM, Startup India, MEITY, or
+       Google for Startups with a clear problem statement (SMB data breaches)
+       and a working prototype.
+    c) RAISE ANGEL FUNDING: The SMB cybersecurity market in India is
+       virtually untapped. A working demo + pilot customers is enough to
+       raise a pre-seed round.
+
+  THE PITCH: "We protect local businesses from data breaches using AI.
+  A local pharmacy with 10,000 customer records gets enterprise-grade
+  breach detection for ₹999/month — the cost of a dinner."
+
+
+  8.6 — TOTAL ADDRESSABLE MARKET (Why This Is Big)
+  ──────────────────────────────────────────────────
+  ▸ 63+ million MSMEs in India alone.
+  ▸ Less than 5% have any form of cybersecurity tooling.
+  ▸ Average cost of SMB data breach: $120,000+ (IBM 2023 report).
+  ▸ The global SMB cybersecurity market is projected to reach
+    $90 billion by 2030 (MarketsandMarkets).
+  ▸ Your competition (CrowdStrike, SentinelOne) starts at $15,000/year —
+    completely out of reach for a local shop. You fill this gap.
+
+
+================================================================================
   END OF DOCUMENT
 ================================================================================
