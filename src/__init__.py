@@ -22,9 +22,13 @@ def create_app():
     def before():
         # Tag the current thread with the requester's IP for anomaly tracking
         database.set_request_ip(request.remote_addr)
+        
         # Kill switch: block all traffic if system is locked down
-        if os.path.exists('.system_lockdown') and request.path not in ('/api/unlock', '/dashboard', '/socket.io/'):
-            abort(403, description="SYSTEM SECURED: A severe security threat was detected and the system has been automatically locked down.")
+        if os.path.exists(database.LOCKDOWN_FILE):
+            # Allow only login, dashboard, and socket.io during lockdown
+            allowed_endpoints = ('dashboard.login', 'dashboard.dashboard', 'dashboard.api_unlock', 'dashboard.api_status', 'dashboard.api_incidents', 'dashboard.logout', 'static')
+            if request.endpoint not in allowed_endpoints and not request.path.startswith('/socket.io/'):
+                abort(403, description="SYSTEM SECURED: A severe security threat was detected and the system has been automatically locked down.")
 
     # Register Blueprints
     from src.routes.store import store_bp

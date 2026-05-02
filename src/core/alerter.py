@@ -28,7 +28,20 @@ else:
 
 # Rate limiting cache
 last_alert_time = 0
-ALERT_COOLDOWN_SECONDS = 60
+ALERT_COOLDOWN_SECONDS = 5
+
+def send_push_notification(query, threat_data=None):
+    topic = "digital_tripwire_7a9f21"
+    if threat_data:
+        message = f"🚨 SECURITY BREACH DETECTED 🚨\nThreat Level: {threat_data.get('threat', 'Unknown')}\nType: {threat_data.get('type', 'Unknown')}\nTarget: {threat_data.get('target', 'Unknown')}\n\nSystem has been automatically locked down."
+    else:
+        message = f"🚨 REPEATED TRIPWIRE HIT 🚨\nThe honeypot is being hit again. System remains locked.\nQuery: {query[:100]}..."
+        
+    try:
+        requests.post(f"https://ntfy.sh/{topic}", data=message.encode('utf-8'), headers={"Title": "Database Honeypot Alert!", "Priority": "urgent", "Tags": "rotating_light,skull"})
+        print(f"[Phone Alert] ✅ Push notification sent to ntfy.sh/{topic}\n")
+    except Exception as e:
+        print(f"[Phone Alert Error] Failed to send push notification: {e}\n")
 
 def analyze_suspicious_query(query):
     """
@@ -40,7 +53,9 @@ def analyze_suspicious_query(query):
     current_time = time.time()
     
     if current_time - last_alert_time < ALERT_COOLDOWN_SECONDS:
-        print(f"\n[Watchdog] 🛑 Alert suppressed due to rate limiting (cooldown: {ALERT_COOLDOWN_SECONDS}s).")
+        print(f"\n[Watchdog] 🛑 AI analysis suppressed due to rate limiting (cooldown: {ALERT_COOLDOWN_SECONDS}s).")
+        # Still send a quick notification so the owner knows the tripwire was hit again
+        send_push_notification(query)
         return
         
     last_alert_time = current_time
@@ -79,13 +94,7 @@ def analyze_suspicious_query(query):
             threat_data = {"threat": "Unknown", "type": "Unknown", "target": "vault_secrets", "error": str(e)}
 
     # --- SEND INSTANT PHONE ALERT (always fires, regardless of NIM/mock) ---
-    topic = "digital_tripwire_7a9f21"
-    message = f"🚨 SECURITY BREACH DETECTED 🚨\nThreat Level: {threat_data.get('threat', 'Unknown')}\nType: {threat_data.get('type', 'Unknown')}\nTarget: {threat_data.get('target', 'Unknown')}\n\nSystem has been automatically locked down."
-    try:
-        requests.post(f"https://ntfy.sh/{topic}", data=message.encode('utf-8'), headers={"Title": "Database Honeypot Alert!", "Priority": "urgent", "Tags": "rotating_light,skull"})
-        print(f"[Phone Alert] ✅ Push notification sent to ntfy.sh/{topic}\n")
-    except Exception as e:
-        print(f"[Phone Alert Error] Failed to send push notification: {e}\n")
+    send_push_notification(query, threat_data)
 
     # --- Tier 2: The Strategist (Google Gemini) ---
     print(f"[Strategist] 🧠 Handing over threat data to Strategist for deep reasoning...")

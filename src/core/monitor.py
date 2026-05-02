@@ -23,12 +23,13 @@ class LockdownHandler(FileSystemEventHandler):
             print("=" * 60 + "\n")
 
 def start_monitor():
-    path = "."
+    # Monitor the parent directory of this file (which is the project root)
+    root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
     event_handler = LockdownHandler()
     observer = Observer()
-    observer.schedule(event_handler, path, recursive=False)
+    observer.schedule(event_handler, root_path, recursive=False)
     observer.start()
-    print("[Monitor] 📡 OS-level file monitor started. Watching for lockdown triggers...")
+    print(f"[Monitor] 📡 OS-level file monitor started on {root_path}. Watching for lockdown triggers...")
     return observer
 
 if __name__ == "__main__":

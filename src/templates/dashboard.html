@@ -149,6 +149,7 @@
       <div style="width:7px;height:7px;border-radius:50%;background:currentColor;"></div>
       <span id="status-text">ACTIVE</span>
     </div>
+    <a href="/logout" style="color:var(--muted);text-decoration:none;font-size:.8rem;margin-left:8px;">Logout</a>
   </div>
 </header>
 
@@ -262,7 +263,11 @@
   }
 
   async function unlockSystem() {
-    await fetch('/api/unlock', { method: 'POST' });
+    const res = await fetch('/api/unlock', { method: 'POST' });
+    if(res.status === 401) {
+      window.location.href = '/login';
+      return;
+    }
     setStatus(false);
   }
 

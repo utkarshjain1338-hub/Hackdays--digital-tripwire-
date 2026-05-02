@@ -4,6 +4,8 @@ import os
 from src.core.alerter import analyze_suspicious_query
 import src.core.detector as detector
 
+LOCKDOWN_FILE = os.path.join(os.path.dirname(__file__), '../../.system_lockdown')
+
 # Thread-local storage to get the current request IP
 _current_ip = threading.local()
 
@@ -28,7 +30,7 @@ def trace_callback(query):
     if 'VAULT_SECRETS' in upper_query:
         print(f"\n[!] DIGITAL TRIPWIRE TRIPPED: Unauthorized access to 'vault_secrets' detected!")
         # AUTO SHUTDOWN KILL SWITCH
-        with open('.system_lockdown', 'w') as f:
+        with open(LOCKDOWN_FILE, 'w') as f:
             f.write('LOCKED')
         # Register honeypot incident in the dashboard
         detector.add_honeypot_incident(ip, query)
