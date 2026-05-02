@@ -1,4 +1,7 @@
 flask
-google-generativeai
+flask-socketio
+simple-websocket
+google-genai
 openai
 python-dotenv
+watchdog

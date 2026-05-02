@@ -1,21 +1,36 @@
 import sqlite3
 import threading
 from ai_alerter import analyze_suspicious_query
+import anomaly_detector
+
+# Thread-local storage to get the current request IP
+_current_ip = threading.local()
+
+def set_request_ip(ip):
+    _current_ip.value = ip
+
+def get_request_ip():
+    return getattr(_current_ip, 'value', '127.0.0.1')
 
 def trace_callback(query):
     """
     SQLite trace callback. Executed on every SQL statement.
-    This acts as our 'Digital Tripwire'.
+    Acts as the 'Digital Tripwire' AND behavioral monitor.
     """
     upper_query = query.upper()
-    
-    # We only care if the bait table is accessed
+    ip = get_request_ip()
+
+    # Log ALL queries through the anomaly detector
+    anomaly_detector.log_query(ip, query)
+
+    # Check if the honeypot bait table was accessed
     if 'VAULT_SECRETS' in upper_query:
-        # Launch the AI analysis in a separate thread so we don't block the database operation
         print(f"\n[!] DIGITAL TRIPWIRE TRIPPED: Unauthorized access to 'vault_secrets' detected!")
         # AUTO SHUTDOWN KILL SWITCH
         with open('.system_lockdown', 'w') as f:
             f.write('LOCKED')
+        # Register honeypot incident in the dashboard
+        anomaly_detector.add_honeypot_incident(ip, query)
         threading.Thread(target=analyze_suspicious_query, args=(query,)).start()
 
 def get_db():

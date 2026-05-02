@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Digital Tripwire — Owner Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:        #0a0e1a;
+      --surface:   #111827;
+      --surface2:  #1a2235;
+      --border:    #1f2d45;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --accent:    #3b82f6;
+      --green:     #10b981;
+      --yellow:    #f59e0b;
+      --red:       #ef4444;
+      --red-glow:  rgba(239,68,68,0.15);
+      --green-glow:rgba(16,185,129,0.15);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; }
+
+    /* ── Top Bar ── */
+    header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 28px;
+      background:var(--surface); border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:100; backdrop-filter:blur(8px);
+    }
+    .logo { display:flex; align-items:center; gap:10px; font-weight:700; font-size:1.1rem; }
+    .logo span { font-size:1.5rem; }
+    #status-badge {
+      display:flex; align-items:center; gap:8px;
+      padding:6px 16px; border-radius:999px; font-size:.8rem; font-weight:600;
+      transition: all .3s;
+    }
+    .status-active  { background:var(--green-glow); color:var(--green); border:1px solid var(--green); }
+    .status-locked  { background:var(--red-glow);   color:var(--red);   border:1px solid var(--red); animation: pulse-red 1.5s infinite; }
+    @keyframes pulse-red { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)} 50%{box-shadow:0 0 0 8px rgba(239,68,68,0)} }
+
+    #unlock-btn {
+      display:none; padding:8px 18px; border-radius:8px;
+      background:var(--accent); color:#fff; font-weight:600; font-size:.85rem;
+      border:none; cursor:pointer; transition:.2s;
+    }
+    #unlock-btn:hover { background:#2563eb; transform:translateY(-1px); }
+
+    /* ── Stats Bar ── */
+    .stats-row { display:flex; gap:16px; padding:16px 28px; flex-wrap:wrap; }
+    .stat-card {
+      flex:1; min-width:160px;
+      background:var(--surface); border:1px solid var(--border); border-radius:12px;
+      padding:16px 20px;
+    }
+    .stat-label { font-size:.73rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+    .stat-value { font-size:1.8rem; font-weight:700; }
+    .stat-value.green { color:var(--green); }
+    .stat-value.red   { color:var(--red);   }
+    .stat-value.yellow{ color:var(--yellow);}
+    .stat-value.blue  { color:var(--accent); }
+
+    /* ── Main Grid ── */
+    .main { display:grid; grid-template-columns:1fr 380px; gap:16px; padding:0 28px 28px; }
+    @media(max-width:900px){ .main { grid-template-columns:1fr; } }
+
+    /* ── Panels ── */
+    .panel {
+      background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden;
+    }
+    .panel-header {
+      padding:14px 20px; display:flex; align-items:center; justify-content:space-between;
+      border-bottom:1px solid var(--border);
+    }
+    .panel-title { font-weight:600; font-size:.9rem; display:flex; align-items:center; gap:8px; }
+    .badge {
+      font-size:.7rem; font-weight:700; padding:2px 8px; border-radius:999px;
+    }
+    .badge-red    { background:var(--red-glow);   color:var(--red); }
+    .badge-green  { background:var(--green-glow); color:var(--green); }
+    .badge-yellow { background:rgba(245,158,11,.15); color:var(--yellow); }
+
+    /* ── Live Query Feed ── */
+    #query-feed { height:420px; overflow-y:auto; }
+    .query-row {
+      display:grid; grid-template-columns:70px 90px 80px 1fr;
+      gap:10px; align-items:center;
+      padding:9px 20px; border-bottom:1px solid var(--border);
+      font-size:.78rem; transition:.2s;
+      animation: slide-in .25s ease;
+    }
+    @keyframes slide-in { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:none} }
+    .query-row:hover { background:var(--surface2); }
+    .query-row.risk-critical { background:rgba(239,68,68,.07); border-left:3px solid var(--red); }
+    .query-row.risk-anomaly  { background:rgba(245,158,11,.07); border-left:3px solid var(--yellow); }
+    .query-row.risk-normal   { border-left:3px solid transparent; }
+    .q-time { color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.72rem; }
+    .q-type  { font-weight:600; font-family:'JetBrains Mono',monospace; }
+    .q-table { color:var(--accent); font-family:'JetBrains Mono',monospace; }
+    .q-query { color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .query-header {
+      display:grid; grid-template-columns:70px 90px 80px 1fr;
+      gap:10px; padding:8px 20px;
+      font-size:.7rem; font-weight:600; color:var(--muted);
+      text-transform:uppercase; letter-spacing:.06em;
+      border-bottom:1px solid var(--border); background:var(--surface2);
+    }
+
+    /* ── Incident Panel ── */
+    #incident-list { height:420px; overflow-y:auto; }
+    .incident-card {
+      padding:14px 18px; border-bottom:1px solid var(--border);
+      animation: slide-in .3s ease;
+    }
+    .incident-card:hover { background:var(--surface2); }
+    .inc-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    .inc-rule { font-size:.7rem; font-weight:700; letter-spacing:.05em; }
+    .inc-time { font-size:.68rem; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+    .inc-reason { font-size:.78rem; color:var(--text); margin-bottom:6px; }
+    .inc-query {
+      font-family:'JetBrains Mono',monospace; font-size:.68rem; color:var(--muted);
+      background:var(--bg); border-radius:6px; padding:6px 8px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .inc-critical .inc-rule { color:var(--red); }
+    .inc-anomaly .inc-rule  { color:var(--yellow); }
+    .empty-state { display:flex; align-items:center; justify-content:center; height:200px; color:var(--muted); font-size:.85rem; flex-direction:column; gap:8px; }
+
+    /* ── Footer link ── */
+    .store-link { padding:14px 20px; text-align:center; font-size:.78rem; color:var(--muted); }
+    .store-link a { color:var(--accent); text-decoration:none; }
+    .store-link a:hover { text-decoration:underline; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width:5px; } ::-webkit-scrollbar-track { background:transparent; } ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo"><span>🍯</span> Digital Tripwire <span style="font-weight:300;color:var(--muted);font-size:.85rem;">Owner Dashboard</span></div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button id="unlock-btn" onclick="unlockSystem()">🔓 Unlock System</button>
+    <div id="status-badge" class="status-active">
+      <div style="width:7px;height:7px;border-radius:50%;background:currentColor;"></div>
+      <span id="status-text">ACTIVE</span>
+    </div>
+  </div>
+</header>
+
+<!-- ── Stats ── -->
+<div class="stats-row">
+  <div class="stat-card"><div class="stat-label">Total Queries</div><div class="stat-value blue" id="stat-queries">0</div></div>
+  <div class="stat-card"><div class="stat-label">Threats Detected</div><div class="stat-value red" id="stat-threats">0</div></div>
+  <div class="stat-card"><div class="stat-label">Anomalies</div><div class="stat-value yellow" id="stat-anomalies">0</div></div>
+  <div class="stat-card"><div class="stat-label">System Status</div><div class="stat-value green" id="stat-status">Secure</div></div>
+</div>
+
+<!-- ── Main Grid ── -->
+<div class="main">
+
+  <!-- Live Query Feed -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">📡 Live Query Feed <span class="badge badge-green" id="live-dot">● LIVE</span></div>
+    </div>
+    <div class="query-header">
+      <span>Time</span><span>Type</span><span>Table</span><span>Query</span>
+    </div>
+    <div id="query-feed">
+      <div class="empty-state">⏳<span>Waiting for database activity...</span></div>
+    </div>
+  </div>
+
+  <!-- Incident Panel -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">🚨 Incident Log <span class="badge badge-red" id="incident-count">0</span></div>
+    </div>
+    <div id="incident-list">
+      <div class="empty-state">✅<span>No incidents detected</span></div>
+    </div>
+    <div class="store-link">
+      <a href="/" target="_blank">↗ Open Cashier Store Interface</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const socket = io();
+  let queryCount = 0, threatCount = 0, anomalyCount = 0;
+  let feedInitialized = false, incidentInitialized = false;
+
+  // ── Helpers ──
+  function el(id){ return document.getElementById(id); }
+
+  function setStatus(locked) {
+    const badge = el('status-badge');
+    const text = el('status-text');
+    const btn = el('unlock-btn');
+    const statStatus = el('stat-status');
+    if(locked){
+      badge.className = 'status-locked';
+      text.textContent = '🔒 LOCKED DOWN';
+      btn.style.display = 'block';
+      statStatus.textContent = 'Locked';
+      statStatus.className = 'stat-value red';
+    } else {
+      badge.className = 'status-active';
+      text.textContent = 'ACTIVE';
+      btn.style.display = 'none';
+      statStatus.textContent = 'Secure';
+      statStatus.className = 'stat-value green';
+    }
+  }
+
+  function addQueryRow(data) {
+    const feed = el('query-feed');
+    if(!feedInitialized){ feed.innerHTML = ''; feedInitialized = true; }
+    queryCount++;
+    el('stat-queries').textContent = queryCount;
+
+    const riskClass = data.risk === 'critical' ? 'risk-critical' : 'risk-normal';
+    const row = document.createElement('div');
+    row.className = `query-row ${riskClass}`;
+    row.innerHTML = `
+      <span class="q-time">${data.ts}</span>
+      <span class="q-type" style="color:${data.type==='SELECT'?'#3b82f6':data.type==='INSERT'?'#10b981':'#f59e0b'}">${data.type}</span>
+      <span class="q-table">${data.table}</span>
+      <span class="q-query" title="${data.query}">${data.query}</span>
+    `;
+    feed.prepend(row);
+    // Keep max 200 rows
+    while(feed.children.length > 200) feed.removeChild(feed.lastChild);
+  }
+
+  function addIncident(data, type) {
+    const list = el('incident-list');
+    if(!incidentInitialized){ list.innerHTML = ''; incidentInitialized = true; }
+
+    type === 'critical' ? threatCount++ : anomalyCount++;
+    el('stat-threats').textContent = threatCount;
+    el('stat-anomalies').textContent = anomalyCount;
+    el('incident-count').textContent = threatCount + anomalyCount;
+
+    const card = document.createElement('div');
+    card.className = `incident-card inc-${type}`;
+    card.innerHTML = `
+      <div class="inc-header">
+        <span class="inc-rule">${data.rule}</span>
+        <span class="inc-time">${data.ts}</span>
+      </div>
+      <div class="inc-reason">${data.reason}</div>
+      <div class="inc-query">${data.query}</div>
+    `;
+    list.prepend(card);
+  }
+
+  async function unlockSystem() {
+    await fetch('/api/unlock', { method: 'POST' });
+    setStatus(false);
+  }
+
+  // ── Socket Events ──
+  socket.on('new_query', (data) => addQueryRow(data));
+
+  socket.on('honeypot_tripped', (data) => {
+    addQueryRow({ ts: data.incident.ts.slice(11,19), type:'SELECT', table:'vault_secrets', query: data.incident.query, risk:'critical' });
+    addIncident(data.incident, 'critical');
+    setStatus(true);
+  });
+
+  socket.on('anomaly_detected', (data) => {
+    addIncident(data.incident, 'anomaly');
+    // Mark latest query row as anomaly
+    const feed = el('query-feed');
+    if(feed.firstChild && feed.firstChild.classList) {
+      feed.firstChild.className = 'query-row risk-anomaly';
+    }
+  });
+
+  socket.on('system_unlocked', () => setStatus(false));
+
+  // ── Load existing incidents on page load ──
+  fetch('/api/status').then(r=>r.json()).then(d => setStatus(d.locked));
+  fetch('/api/incidents').then(r=>r.json()).then(incidents => {
+    incidents.slice().reverse().forEach(inc => {
+      addIncident(inc, inc.type);
+    });
+  });
+</script>
+</body>
+</html>
