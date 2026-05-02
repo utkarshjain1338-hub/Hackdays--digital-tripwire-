@@ -1,10 +1,17 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, abort
 import database
+import os
 
 app = Flask(__name__)
 
 # Ensure DB is initialized
 database.init_db()
+
+@app.before_request
+def check_lockdown():
+    if os.path.exists('.system_lockdown'):
+        abort(403, description="SYSTEM SECURED: A severe security threat was detected and the system has been automatically locked down to protect data.")
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():

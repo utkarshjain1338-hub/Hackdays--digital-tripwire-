@@ -1,5 +1,6 @@
 import os
 import json
+import requests
 from openai import OpenAI
 from google import genai
 from dotenv import load_dotenv
@@ -56,6 +57,15 @@ def analyze_suspicious_query(query):
                 
             threat_data = json.loads(watchdog_response)
             print(f"[Watchdog] ✅ Threat identified. JSON payload generated:\n{json.dumps(threat_data, indent=2)}\n")
+            
+            # --- SEND INSTANT PHONE ALERT ---
+            topic = "digital_tripwire_7a9f21"
+            message = f"🚨 SECURITY BREACH DETECTED 🚨\nThreat Level: {threat_data.get('threat', 'Unknown')}\nType: {threat_data.get('type', 'Unknown')}\nTarget: {threat_data.get('target', 'Unknown')}\n\nSystem has been automatically locked down."
+            try:
+                requests.post(f"https://ntfy.sh/{topic}", data=message.encode('utf-8'), headers={"Title": "Database Honeypot Alert!", "Priority": "urgent", "Tags": "rotating_light,skull"})
+                print(f"[Phone Alert] ✅ Push notification sent to ntfy.sh/{topic}\n")
+            except Exception as e:
+                print(f"[Phone Alert Error] Failed to send push notification: {e}\n")
             
         except Exception as e:
             print(f"[Watchdog Error]: Failed to parse query via NIM: {e}")

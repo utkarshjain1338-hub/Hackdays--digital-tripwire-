@@ -13,6 +13,9 @@ def trace_callback(query):
     if 'VAULT_SECRETS' in upper_query:
         # Launch the AI analysis in a separate thread so we don't block the database operation
         print(f"\n[!] DIGITAL TRIPWIRE TRIPPED: Unauthorized access to 'vault_secrets' detected!")
+        # AUTO SHUTDOWN KILL SWITCH
+        with open('.system_lockdown', 'w') as f:
+            f.write('LOCKED')
         threading.Thread(target=analyze_suspicious_query, args=(query,)).start()
 
 def get_db():
